@@ -23,10 +23,13 @@ public class LichChieu {
   @JoinColumn(name = "ma_phong", nullable = true)
   private Phong phong;
 
-  @Column(name = "ngay_bat_dau", nullable = false)
+  @Column(name = "ngay_chieu", nullable = true)
+  private LocalDate ngayChieu;
+
+  @Column(name = "ngay_bat_dau", nullable = true)
   private LocalDate ngayBatDau;
 
-  @Column(name = "ngay_ket_thuc", nullable = false)
+  @Column(name = "ngay_ket_thuc", nullable = true)
   private LocalDate ngayKetThuc;
 
   @Column(name = "gio_bat_dau", nullable = true)
@@ -50,6 +53,6 @@ public class LichChieu {
   @Column(name = "created_at", insertable = false, updatable = false)
   private LocalDateTime createdAt;
 
-  @Column(name = "created_at", insertable = false, updatable = false)
+  @Column(name = "updated_at", insertable = false, updatable = false)
   private LocalDateTime updatedAt;
 }

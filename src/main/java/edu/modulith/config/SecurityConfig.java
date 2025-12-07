@@ -32,10 +32,16 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/lich-chieu/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/thanh-toan/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/the-loai/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/filter/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/public/suat-chieu/{lichChieuId}/ghe/stream").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/public/suat-chieu/**").hasAuthority("ROLE_CUSTOMER")
+                        .requestMatchers(HttpMethod.GET, "/api/lich-chieu/dat-ve/**").hasAuthority("ROLE_CUSTOMER")
                         .requestMatchers("/api/suat-chieu/**").permitAll()
+                        .requestMatchers("/api/lich-chieu/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers("/api/phim/admin/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers("/api/rap/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers("/api/phong/**").hasAuthority("ROLE_ADMIN")
+                        .requestMatchers("/api/phim/admin/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers(
                                 "/api/auth/**",
                                 "/swagger-ui/**", "/v3/api-docs/**",
@@ -44,7 +50,6 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .httpBasic(Customizer.withDefaults());
-
         http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

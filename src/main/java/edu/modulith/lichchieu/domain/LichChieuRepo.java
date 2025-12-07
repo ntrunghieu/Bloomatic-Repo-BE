@@ -1,4 +1,6 @@
 package edu.modulith.lichchieu.domain;
+import edu.modulith.phim.domain.Phim;
+import edu.modulith.phim.dto.PhimDto;
 import jakarta.transaction.Transactional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -39,11 +41,6 @@ public interface LichChieuRepo extends JpaRepository<LichChieu, Long> {
                                 @Param("startDate") LocalDate startDate,
                                 @Param("endDate") LocalDate endDate);
 
-//    @Query("SELECT lc FROM LichChieu lc WHERE " +
-//            "(:maRapChieu IS NULL OR lc.phong.rap.id = :maRapChieu) AND " +
-//            "(:maPhong IS NULL OR lc.phong.id = :maPhong) AND " +
-//            "(:ngayChieu IS NULL OR lc.ngayBatDau = :ngayChieu)")
-//    List<LichChieu> findFilteredSuatChieu(Long maRapChieu, Long maPhong, LocalDate ngayChieu);
 
     @Query(value = "SELECT lc.* " +
             "FROM lich_chieu lc " +
@@ -69,8 +66,8 @@ public interface LichChieuRepo extends JpaRepository<LichChieu, Long> {
     @Query(value = "UPDATE lich_chieu " +
             "SET ma_phim = :maPhim, " +
             "ma_phong = :maPhong, " +
-            "ngay_bat_dau = :ngayBatDau, " +
-            "ngay_ket_thuc = :ngayKetThuc, " +
+            "ngay_chieu = :ngayChieu, " +
+//            "ngay_ket_thuc = :ngayKetThuc, " +
             "dinh_dang = :dinhDang, " +
             "hinh_thuc_dich = :hinhThucDich, " +
             "gio_bat_dau = :gioBatDau, " +
@@ -83,8 +80,8 @@ public interface LichChieuRepo extends JpaRepository<LichChieu, Long> {
             @Param("id") Long id,
             @Param("maPhim") Long maPhim,
             @Param("maPhong") Long maPhong,
-            @Param("ngayBatDau") LocalDate ngayBatDau,
-            @Param("ngayKetThuc") LocalDate ngayKetThuc,
+            @Param("ngayChieu") LocalDate ngayChieu,
+//            @Param("ngayKetThuc") LocalDate ngayKetThuc,
             @Param("dinhDang") String dinhDang,
             @Param("hinhThucDich") String hinhThucDich,
             @Param("gioBatDau") LocalDateTime gioBatDau,
@@ -92,6 +89,66 @@ public interface LichChieuRepo extends JpaRepository<LichChieu, Long> {
             @Param("trangThai") String trangThai,
             @Param("giaCoSo") BigDecimal giaCoSo
     );
+
+    // Truy vấn tất cả lịch chiếu phù hợp với điều kiện lọc: Ngày và Tên Rạp
+    @Query("SELECT lc FROM LichChieu lc " +
+            "JOIN lc.phong p " +    // Liên kết LichChieu -> Phong
+            "JOIN p.rap r " +       // Liên kết Phong -> Rap
+            "WHERE lc.ngayBatDau = :ngayChieu AND lc.trangThai = 'ACTIVE' " +
+            // Điều kiện lọc theo tên rạp: kiểm tra null/rỗng HOẶC tìm kiếm một phần tên
+            "AND (:tenRap IS NULL OR :tenRap = '' OR r.tenRap LIKE %:tenRap%) " +
+            "ORDER BY r.tenRap, lc.gioBatDau")
+    List<LichChieu> findSchedulesFiltered(
+            @Param("ngayChieu") LocalDate ngayChieu,
+            @Param("tenRap") String tenRap // Tham số mới
+    );
+
+    // Sử dụng @Query để định nghĩa truy vấn kiểm tra trùng lặp
+    @Query("SELECT CASE WHEN COUNT(lc) > 0 THEN TRUE ELSE FALSE END FROM LichChieu lc " +
+            "WHERE lc.phong.id = :maPhong AND " +
+            "(:newStart < lc.gioKetThuc AND lc.gioBatDau < :newEnd)")
+    boolean existsOverlappingSlot(
+            @Param("maPhong") Long maPhong,
+            @Param("newStart") LocalDateTime newStart,
+            @Param("newEnd") LocalDateTime newEnd
+    );
+
+    @Query("""
+    SELECT CASE WHEN COUNT(lc) > 0 THEN TRUE ELSE FALSE END 
+    FROM LichChieu lc 
+    WHERE lc.phong.id = :phongId 
+    AND lc.id != :excludedSlotId 
+    AND (
+        (:newGioBatDau < lc.gioKetThuc AND :newGioKetThuc > lc.gioBatDau)
+    )
+""")
+    boolean existsOverlappingSlotExcludingSelf(
+            @Param("phongId") Long phongId,
+            @Param("newGioBatDau") LocalDateTime newGioBatDau,
+            @Param("newGioKetThuc") LocalDateTime newGioKetThuc,
+            @Param("excludedSlotId") Long excludedSlotId
+    );
+
+    @Query("""
+    SELECT DISTINCT lc FROM LichChieu lc
+    JOIN FETCH lc.phim p
+    LEFT JOIN FETCH p.phimTheLoaiSet ptls
+    LEFT JOIN FETCH ptls.theLoai tl
+    JOIN FETCH lc.phong phong
+    JOIN FETCH phong.rap r
+    WHERE lc.ngayChieu BETWEEN :startDate AND :endDate
+      AND LOWER(r.diaChi) LIKE LOWER(CONCAT('%', :city, '%'))
+""")
+    List<LichChieu> findSchedulesByDateRangeAndCityWithDetails(
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            @Param("city") String city);
+
+    @Query("SELECT DISTINCT lc.phim.id FROM LichChieu lc")
+    List<LichChieu> findDistinctMoviesScheduled();
+
+    @Query("SELECT lc FROM LichChieu lc WHERE lc.ngayChieu IS NULL")
+    List<LichChieu> findScheduledShowtimesWithoutSpecificDate();
 
 
 }

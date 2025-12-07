@@ -6,4 +6,5 @@ import java.util.Optional;
 public interface TaiKhoanRepo extends JpaRepository<TaiKhoan, Long> {
     boolean existsByEmailIgnoreCase(String email);
     Optional<TaiKhoan> findByEmailIgnoreCase(String email);
+    Optional<TaiKhoan> findByEmail(String email);
 }

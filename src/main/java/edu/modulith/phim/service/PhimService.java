@@ -2,6 +2,7 @@ package edu.modulith.phim.service;
 import edu.modulith.phim.domain.Phim;
 import edu.modulith.phim.domain.PhimRepo;
 import edu.modulith.phim.dto.PhimDto;
+import edu.modulith.phim.dto.PhimFilterDto;
 import edu.modulith.phim.dto.PhimOption;
 import edu.modulith.phim.dto.PhimRequest;
 import edu.modulith.theloaiphim.domain.PhimTheLoai;
@@ -18,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -157,12 +159,39 @@ public class PhimService {
 //    }
 
     public List<PhimOption> findAvailableMovies() {
-        List<Phim> availableMovies = phimRepository.findAll();
+        // 1. Định nghĩa các trạng thái cần lọc
+        final String TRANG_THAI_DANG_CHIEU = "Đang chiếu";
+        final String TRANG_THAI_SAP_CHIEU = "Sắp chiếu";
 
+        // 2. Định nghĩa danh sách trạng thái
+        List<String> trangThaisCanLoc = Arrays.asList(TRANG_THAI_DANG_CHIEU, TRANG_THAI_SAP_CHIEU);
+
+        List<Phim> availableMovies = phimRepository.findByTrangThaiIn(trangThaisCanLoc);
+
+        // 4. Chuyển đổi sang DTO và trả về
         return availableMovies.stream()
                 .map(this::convertToMovieOption)
                 .collect(Collectors.toList());
     }
+
+//    public List<PhimOption> findAvailableMovies() {
+//        List<Phim> availableMovies = phimRepository.findAll();
+//
+//        return availableMovies.stream()
+//                .map(this::convertToMovieOption)
+//                .collect(Collectors.toList());
+//    }
+
+//    public List<PhimFilterDto> getAllMovies() {
+//        final String TRANG_THAI_DANG_CHIEU = "Đang chiếu";
+//        // Lấy ngày hiện tại để so sánh với lịch chiếu của phim
+//        final LocalDate currentDate = LocalDate.now();
+//
+//        // Gọi phương thức mới với trạng thái và ngày hiện tại
+//        return phimRepository.findActiveAndScheduledMovies(TRANG_THAI_DANG_CHIEU, currentDate).stream()
+//                .map(PhimFilterDto::fromEntity)
+//                .collect(Collectors.toList());
+//    }
 }
 
 

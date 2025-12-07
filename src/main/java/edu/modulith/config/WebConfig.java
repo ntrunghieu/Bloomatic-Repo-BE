@@ -1,8 +1,14 @@
 package edu.modulith.config;
 
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.client.RestTemplate;
 
 @Configuration
 public class WebConfig {
-    // CORS, message converters, etc.
+    @Bean
+    public RestTemplate restTemplate() {
+        return new RestTemplate();
+        // Có thể thêm cấu hình timeout, message converters tại đây
+    }
 }

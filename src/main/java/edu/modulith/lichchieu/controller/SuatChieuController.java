@@ -5,6 +5,7 @@ import edu.modulith.lichchieu.dto.SuatChieuDto;
 import edu.modulith.lichchieu.service.LichChieuService;
 import edu.modulith.lichchieu.service.SuatChieuService;
 import lombok.RequiredArgsConstructor;
+import org.apache.coyote.BadRequestException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -38,7 +39,7 @@ public class SuatChieuController {
 
     // TẠO MỚI (POST)
     @PostMapping
-    public ResponseEntity<SuatChieuDto> createSlot(@RequestBody SuatChieuDto dto) {
+    public ResponseEntity<SuatChieuDto> createSlot(@RequestBody SuatChieuDto dto) throws BadRequestException {
         SuatChieuDto newSlot = suatChieuService.createSlot(dto);
         return new ResponseEntity<>(newSlot, HttpStatus.CREATED);
     }
@@ -63,6 +64,8 @@ public class SuatChieuController {
         } catch (DataIntegrityViolationException ex) {
             // Xử lý lỗi ràng buộc dữ liệu (ví dụ: giờ chiếu bị trùng, ID không hợp lệ)
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        } catch (BadRequestException e) {
+            throw new RuntimeException(e);
         }
     }
 

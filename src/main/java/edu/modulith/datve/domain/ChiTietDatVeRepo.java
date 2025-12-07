@@ -12,4 +12,14 @@ public interface ChiTietDatVeRepo extends JpaRepository<ChiTietDatVe, Long> {
                     "WHERE c.ma_suat_chieu = :maLichChieu " +
                     "AND c.ma_ghe IN :dsMaGhe", nativeQuery = true )
     List<ChiTietDatVe> findTrungGhe(@Param("maLichChieu") Long maLichChieu, @Param("dsMaGhe") List<Long> dsMaGhe);
+
+    @Query("""
+        select ctdv.ghe.id
+        from ChiTietDatVe ctdv
+        join ctdv.datVe dv
+        where ctdv.lichChieu.maLichChieu = :lichChieuId
+          and dv.trangThai in ('PENDING', 'PAID')
+    """)
+    List<Long> findBookedSeatIdsByLichChieu(@Param("lichChieuId") Long lichChieuId);
+
 }

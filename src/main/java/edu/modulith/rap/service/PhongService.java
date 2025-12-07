@@ -30,7 +30,7 @@ public class PhongService {
 //        long tong = stats != null ? stats.getTongGhe() : 0;
 
         Long maRap = (p.getRap() != null) ? p.getRap().getId() : null;
-
+        boolean hasConfig = gheRepo.countByPhong_Id(p.getId()) > 0;
         return new PhongDto(
                 p.getId(),
                 maRap,
@@ -41,7 +41,8 @@ public class PhongService {
                 p.getHang(),
 //                0L,
                 p.getCreatedAt(),
-                p.getUpdatedAt()
+                p.getUpdatedAt(),
+                hasConfig
         );
     }
 
@@ -70,7 +71,8 @@ public class PhongService {
         phong.setTenPhong(req.tenPhong().trim());
         phong.setLoaiPhong(req.loaiPhong().trim());
         phong.setTrangThai(true);
-
+        phong.setHang(req.hang());
+        phong.setCot(req.cot());
         Phong saved = phongRepo.save(phong);
 
         // 2) Sinh ghế mặc định
@@ -86,7 +88,7 @@ public class PhongService {
                         .hang(hang)
                         .cot(col)
                         .nhanGhe(label)
-                        .loaiGhe("NORMAL")
+                        .loaiGhe("EMPTY")
                         .nhomCouple(null)
                         .hoatDong(true)
                         .heSoGia(BigDecimal.ONE)

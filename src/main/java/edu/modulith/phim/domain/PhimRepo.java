@@ -9,6 +9,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 
 @Repository
@@ -41,4 +42,20 @@ public interface PhimRepo extends JpaRepository<Phim, Long> {
     List<Phim> findNowShowingByNgay(@Param("ngay") LocalDate ngay);
 
     List<Phim> findByNgayKhoiChieuGreaterThanEqual(LocalDate date);
+
+    @Query("SELECT DISTINCT p FROM LichChieu lc JOIN lc.phim p WHERE " +
+            "p.trangThai = :trangThai AND " +
+            "lc.ngayBatDau <= :currentDate AND " +
+            "lc.ngayKetThuc >= :currentDate")
+    List<Phim> findActiveAndScheduledMovies(
+            @Param("trangThai") String trangThai,
+            @Param("currentDate") LocalDate currentDate
+    );
+
+    List<Phim> findByTrangThai(String trangThai);
+    List<Phim> findByTrangThaiIn(Collection<String> trangThais);
+
+
+
+
 }

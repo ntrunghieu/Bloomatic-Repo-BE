@@ -1,5 +1,6 @@
 package edu.modulith.rap.controller;
 
+import edu.modulith.common.exception.ResourceNotFoundException;
 import edu.modulith.rap.domain.Ghe;
 import edu.modulith.rap.domain.GheRepo;
 import edu.modulith.rap.domain.Phong;
@@ -12,6 +13,7 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -30,6 +32,8 @@ public class GheConfigController {
 
     private final GheRepo gheRepo;
     private final PhongRepo phongRepo;
+
+    private final SeatConfigService gheService;
 
     // ====== Helper mapping ======
 
@@ -142,6 +146,18 @@ public class GheConfigController {
                                    @RequestBody GheLayoutDto dto) {
 
         return seatConfigService.saveLayout(roomId, dto);
+    }
+
+    @DeleteMapping()
+    public ResponseEntity<Void> resetLayout(@PathVariable Long roomId) {
+        try {
+            gheService.deleteLayoutByMaPhong(roomId);
+            // Trả về 204 No Content khi DELETE thành công
+            return ResponseEntity.noContent().build();
+        } catch (ResourceNotFoundException ex) {
+            // Trả về 404 Not Found nếu phòng không tồn tại
+            return ResponseEntity.notFound().build();
+        }
     }
 
 //    @PostMapping

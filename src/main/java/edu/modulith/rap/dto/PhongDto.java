@@ -13,6 +13,7 @@ public record PhongDto(
 
 //        long tongSoGhe,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        boolean daCauHinh
 ) {}
 

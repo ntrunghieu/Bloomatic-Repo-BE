@@ -1,4 +1,5 @@
 package edu.modulith.phim.domain;
+import edu.modulith.theloaiphim.domain.PhimTheLoai;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDate;
@@ -60,5 +61,8 @@ public class Phim {
 
   @Column(name = "updated_at", insertable = false, updatable = false)
   private LocalDateTime updatedAt;
+
+  @OneToMany(mappedBy = "phim", fetch = FetchType.LAZY)
+  private Set<PhimTheLoai> phimTheLoaiSet;
 }
 

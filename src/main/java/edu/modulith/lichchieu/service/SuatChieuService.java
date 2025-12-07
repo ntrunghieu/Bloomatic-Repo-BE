@@ -10,6 +10,7 @@ import edu.modulith.rap.domain.Phong;
 import edu.modulith.rap.domain.PhongRepo;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.apache.coyote.BadRequestException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -35,25 +36,103 @@ public class SuatChieuService {
 
     // 2. Tạo suất chiếu
     @Transactional
-    public SuatChieuDto createSlot(SuatChieuDto dto) {
-        // Lấy Entity Phim và Phong
-        Phim phim = phimRepo.findById(dto.maPhim()).orElseThrow();
-        Phong phong = phongRepo.findById(dto.maPhong()).orElseThrow();
+    public SuatChieuDto createSlot(SuatChieuDto dto) throws BadRequestException {
+        // ... (Lấy Phim, Phòng, Validate Phim/Phòng)
 
-        // Chuyển đổi DTO sang Entity
+        Phim phim = phimRepo.findById(dto.maPhim()).orElseThrow(
+                () -> new BadRequestException("Không tìm thấy phim với mã: " + dto.maPhim())
+        );
+        Phong phong = phongRepo.findById(dto.maPhong()).orElseThrow(
+                () -> new BadRequestException("Không tìm thấy phòng với mã: " + dto.maPhong())
+        );
+
+        LocalDate ngayChieu = dto.ngayChieu();
+        LocalDateTime gioBatDau = LocalDateTime.of(ngayChieu, dto.gioBatDau());
+
+        // ==========================================================
+        // BƯỚC SỬA: XỬ LÝ SUẤT CHIẾU KÉO DÀI QUA NGÀY
+        // ==========================================================
+        LocalTime thoiDiemKetThuc = dto.gioKetThuc();
+
+        // Khởi tạo thời gian kết thúc bằng ngày bắt đầu + giờ kết thúc
+        LocalDateTime gioKetThuc = LocalDateTime.of(ngayChieu, thoiDiemKetThuc);
+
+        // Nếu giờ kết thúc (ví dụ 01:00) nhỏ hơn hoặc bằng giờ bắt đầu (ví dụ 23:00),
+        // tức là suất chiếu đã qua ngày mới, cần thêm 1 ngày vào gioKetThuc.
+        if (!gioKetThuc.isAfter(gioBatDau)) {
+            // Cộng thêm 1 ngày
+            gioKetThuc = gioKetThuc.plusDays(1);
+        }
+        // ==========================================================
+
+
+        // 1. Validate giờ kết thúc sau giờ bắt đầu (Bây giờ sẽ luôn đúng)
+        if (!gioKetThuc.isAfter(gioBatDau)) {
+            // Lỗi này chỉ xảy ra nếu có vấn đề nghiêm trọng với logic DTO/giờ
+            throw new BadRequestException("Giờ kết thúc phải sau giờ bắt đầu.");
+        }
+
+        boolean isOverlapping = lichChieuRepo.existsOverlappingSlot(
+                phong.getId(), // Mã phòng
+                gioBatDau,     // Giờ bắt đầu của suất mới
+                gioKetThuc     // Giờ kết thúc của suất mới
+        );
+
+        if (isOverlapping) {
+            throw new BadRequestException(
+                    "Phòng chiếu này đã có suất chiếu trong khoảng thời gian " +
+                            dto.gioBatDau() + " - " + dto.gioKetThuc() + "."
+            );
+        }
+
+        // 2. Validate phạm vi ngày của phim (Giữ nguyên logic cũ)
+        LocalDate ngayKhoiChieu = phim.getNgayKhoiChieu();
+        LocalDate ngayKetThuc = phim.getNgayKetThuc();
+
+        if (ngayChieu.isBefore(ngayKhoiChieu) || ngayChieu.isAfter(ngayKetThuc)) {
+            throw new BadRequestException(
+                    "Ngày chiếu (" + ngayChieu + ") nằm ngoài thời gian phát hành của phim (" +
+                            ngayKhoiChieu + " đến " + ngayKetThuc + ")"
+            );
+        }
+
+        // 4. Tạo entity LichChieu
         LichChieu lichChieu = new LichChieu();
         lichChieu.setPhim(phim);
         lichChieu.setPhong(phong);
-        lichChieu.setNgayBatDau(dto.ngayBatDau());
-        lichChieu.setNgayKetThuc(dto.ngayBatDau()); // Set ngày kết thúc bằng ngày bắt đầu cho suất chiếu cụ thể
-        lichChieu.setGioBatDau(LocalDateTime.of(dto.ngayBatDau(), dto.gioBatDau())); // Kết hợp Date và Time
-        lichChieu.setGioKetThuc(LocalDateTime.of(dto.ngayBatDau(), dto.gioKetThuc()));
+        lichChieu.setNgayChieu(ngayChieu); // Lưu ngày bắt đầu
+        lichChieu.setGioBatDau(gioBatDau);
+        lichChieu.setGioKetThuc(gioKetThuc); // Lưu ngày/giờ kết thúc chính xác (có thể là ngày hôm sau)
+        // ... (Các thuộc tính khác)
         lichChieu.setGiaCoSo(dto.giaCoSo());
-        // ... set các trường còn lại ...
+        lichChieu.setDinhDang(dto.dinhDang());
+        lichChieu.setHinhThucDich(dto.hinhThucDich());
+        lichChieu.setTrangThai("SCHEDULED");
 
         LichChieu saved = lichChieuRepo.save(lichChieu);
         return convertToDto(saved);
     }
+
+    @Transactional
+//    public SuatChieuDto createSlot(SuatChieuDto dto) {
+//        // Lấy Entity Phim và Phong
+//        Phim phim = phimRepo.findById(dto.maPhim()).orElseThrow();
+//        Phong phong = phongRepo.findById(dto.maPhong()).orElseThrow();
+//
+//        // Chuyển đổi DTO sang Entity
+//        LichChieu lichChieu = new LichChieu();
+//        lichChieu.setPhim(phim);
+//        lichChieu.setPhong(phong);
+//        lichChieu.setNgayChieu(dto.ngayChieu());
+////        lichChieu.setNgayKetThuc(dto.ngayBatDau());
+//        lichChieu.setGioBatDau(LocalDateTime.of(dto.ngayChieu(), dto.gioBatDau()));
+//        lichChieu.setGioKetThuc(LocalDateTime.of(dto.ngayChieu(), dto.gioKetThuc()));
+//        lichChieu.setGiaCoSo(dto.giaCoSo());
+//        // ... set các trường còn lại ...
+//
+//        LichChieu saved = lichChieuRepo.save(lichChieu);
+//        return convertToDto(saved);
+//    }
 
     public static SuatChieuDto convertToDto(LichChieu entity) {
         // Kiểm tra để tránh NullPointerException nếu các mối quan hệ (phong, rap) là LAZY
@@ -64,8 +143,8 @@ public class SuatChieuService {
                 maRap,
                 entity.getPhim().getId(),
                 entity.getPhong() != null ? entity.getPhong().getId() : null,
-                entity.getNgayBatDau(),
-                entity.getNgayKetThuc(),
+                entity.getNgayChieu(),
+//                entity.getNgayKetThuc(),
                 entity.getDinhDang(),
                 entity.getHinhThucDich(),
                 entity.getGioBatDau() != null ? entity.getGioBatDau().toLocalTime() : null,
@@ -76,53 +155,81 @@ public class SuatChieuService {
     }
     // 3. Cập nhật và Xóa tương tự
     @Transactional
-    public SuatChieuDto updateSlot(Long id, SuatChieuDto dto) throws ResourceNotFoundException {
+    public SuatChieuDto updateSlot(Long id, SuatChieuDto dto) throws BadRequestException {
+        // 1. Lấy Entity cũ
+        LichChieu existingSlot = lichChieuRepo.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy suất chiếu với ID: " + id));
 
-        // 1. Kiểm tra sự tồn tại của các mối quan hệ (vẫn cần thiết)
-        // Nếu không tồn tại Phim hoặc Phòng, ném lỗi 400 Bad Request
-        phimRepo.findById(dto.maPhim())
-                .orElseThrow(() -> new DataIntegrityViolationException("Mã Phim không hợp lệ: " + dto.maPhim()));
-
-        phongRepo.findById(dto.maPhong())
-                .orElseThrow(() -> new DataIntegrityViolationException("Mã Phòng không hợp lệ: " + dto.maPhong()));
-
-        // 2. Chuẩn bị dữ liệu LocalDateTime
-        LocalDate ngayChieu = dto.ngayBatDau();
-        LocalTime gioBatDau = dto.gioBatDau();
-        LocalTime gioKetThuc = dto.gioKetThuc();
-
-        // Kết hợp Ngày và Giờ thành LocalDateTime
-        LocalDateTime gioBatDauLDT = LocalDateTime.of(ngayChieu, gioBatDau);
-        LocalDateTime gioKetThucLDT = LocalDateTime.of(ngayChieu, gioKetThuc);
-
-        // 3. GỌI NATIVE QUERY
-        int updatedRows = lichChieuRepo.updateSlotNative(
-                id,
-                dto.maPhim(),
-                dto.maPhong(),
-                dto.ngayBatDau(),
-                dto.ngayKetThuc(),
-                dto.dinhDang(),
-                dto.hinhThucDich(),
-                gioBatDauLDT,
-                gioKetThucLDT,
-                dto.trangThai(),
-                dto.giaCoSo()
+        // Lấy Phim và Phòng (và validate nếu cần)
+        Phim phim = phimRepo.findById(dto.maPhim()).orElseThrow(
+                () -> new BadRequestException("Không tìm thấy phim với mã: " + dto.maPhim())
+        );
+        Phong phong = phongRepo.findById(dto.maPhong()).orElseThrow(
+                () -> new BadRequestException("Không tìm thấy phòng với mã: " + dto.maPhong())
         );
 
-        // 4. Xử lý trường hợp không tìm thấy ID (updatedRows = 0)
-        if (updatedRows == 0) {
-            // Kiểm tra xem ID suất chiếu có tồn tại không
-            if (!lichChieuRepo.existsById(id)) {
-                throw new ResourceNotFoundException("Không tìm thấy suất chiếu với ID: " + id);
-            }
+        // ==========================================================
+        // BƯỚC 1: TÁI TẠO GIỜ BẮT ĐẦU VÀ KẾT THÚC CHÍNH XÁC (CÓ QUA NGÀY)
+        // ==========================================================
+        LocalDate ngayChieu = dto.ngayChieu();
+        LocalDateTime gioBatDau = LocalDateTime.of(ngayChieu, dto.gioBatDau());
+
+        LocalTime thoiDiemKetThuc = dto.gioKetThuc();
+        LocalDateTime gioKetThuc = LocalDateTime.of(ngayChieu, thoiDiemKetThuc);
+
+        // Logic xử lý suất chiếu qua ngày (giống hệt createSlot)
+        if (!gioKetThuc.isAfter(gioBatDau)) {
+            // Cộng thêm 1 ngày nếu suất chiếu kết thúc vào ngày hôm sau (ví dụ: 23:00 -> 01:00)
+            gioKetThuc = gioKetThuc.plusDays(1);
+        }
+        // ==========================================================
+
+        // 2. Validate giờ kết thúc sau giờ bắt đầu
+        if (!gioKetThuc.isAfter(gioBatDau)) {
+            throw new BadRequestException("Giờ kết thúc phải sau giờ bắt đầu.");
         }
 
-        // 5. Trả về DTO đã cập nhật
-        // Phương pháp an toàn nhất là tải lại Entity để đảm bảo dữ liệu mới nhất
-        LichChieu updatedSlot = lichChieuRepo.findById(id).get();
+        // ==========================================================
+        // BƯỚC 2: KIỂM TRA TRÙNG LẶP (LOẠI TRỪ BẢN GHI HIỆN TẠI)
+        // ==========================================================
+        boolean isOverlapping = lichChieuRepo.existsOverlappingSlotExcludingSelf(
+                phong.getId(),      // Mã phòng
+                gioBatDau,          // Giờ bắt đầu của suất mới
+                gioKetThuc,         // Giờ kết thúc của suất mới
+                existingSlot.getMaLichChieu()// ID của suất chiếu đang được CẬP NHẬT
+        );
 
-        return SuatChieuDto.fromEntity(updatedSlot);
+        if (isOverlapping) {
+            throw new BadRequestException(
+                    "Phòng chiếu này đã có suất chiếu khác trong khoảng thời gian " +
+                            dto.gioBatDau() + " - " + dto.gioKetThuc() + "."
+            );
+        }
+        // ==========================================================
+
+        // 3. Validate phạm vi ngày của phim (Giữ nguyên logic cũ)
+        LocalDate ngayKhoiChieu = phim.getNgayKhoiChieu();
+        LocalDate ngayKetThuc = phim.getNgayKetThuc();
+        if (ngayChieu.isBefore(ngayKhoiChieu) || ngayChieu.isAfter(ngayKetThuc)) {
+            throw new BadRequestException(
+                    "Ngày chiếu (" + ngayChieu + ") nằm ngoài thời gian phát hành của phim (" +
+                            ngayKhoiChieu + " đến " + ngayKetThuc + ")"
+            );
+        }
+
+        // 4. Cập nhật các trường
+        existingSlot.setPhim(phim);
+        existingSlot.setPhong(phong);
+        existingSlot.setNgayChieu(ngayChieu);
+        existingSlot.setGioBatDau(gioBatDau);
+        existingSlot.setGioKetThuc(gioKetThuc); // Lưu giá trị đã được xử lý qua ngày
+        // ... Cập nhật các trường khác:
+        existingSlot.setGiaCoSo(dto.giaCoSo());
+        existingSlot.setDinhDang(dto.dinhDang());
+        existingSlot.setHinhThucDich(dto.hinhThucDich());
+
+        LichChieu updated = lichChieuRepo.save(existingSlot);
+        return convertToDto(updated);
     }
 
     public void deleteSlot(Long id) throws ResourceNotFoundException {

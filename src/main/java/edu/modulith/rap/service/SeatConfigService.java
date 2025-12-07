@@ -1,5 +1,6 @@
 package edu.modulith.rap.service;
 
+import edu.modulith.common.exception.ResourceNotFoundException;
 import edu.modulith.rap.domain.Ghe;
 import edu.modulith.rap.domain.GheRepo;
 import edu.modulith.rap.domain.Phong;
@@ -27,6 +28,8 @@ public class SeatConfigService {
     private final PhongRepo phongRepo;
 
     private final EntityManager entityManager;
+
+
 
     @Transactional
     public GheLayoutDto saveLayout(Long roomId, GheLayoutDto dto) {
@@ -97,10 +100,22 @@ public class SeatConfigService {
                     mapLoaiGheToType(ghe),
                     ghe.getNhomCouple(),
                     ghe.getCoupleRole()
+
             );
         }).toList();
 
         return new GheLayoutDto(dto.hang(), dto.cot(), resultSeats);
+    }
+
+    @Transactional
+    public void deleteLayoutByMaPhong(Long maPhong) throws ResourceNotFoundException {
+        // 1. Kiểm tra sự tồn tại của phòng
+        if (!phongRepo.existsById(maPhong)) {
+            throw new ResourceNotFoundException("Không tìm thấy phòng với ID: " + maPhong);
+        }
+
+        // 2. Xóa tất cả các ghế trong phòng
+        gheRepo.deleteAllByPhong_Id(maPhong);
     }
 
     private BigDecimal mapTypeToHeSoGia(String type) {

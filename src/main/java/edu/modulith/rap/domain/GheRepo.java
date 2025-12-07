@@ -34,4 +34,14 @@ public interface GheRepo extends JpaRepository<Ghe, Long> {
            where g.phong.id = :maPhong
            """)
     PhongSeatStats tinhThongKePhong(@Param("maPhong") Long maPhong);
+
+    @Modifying
+    @Transactional
+    void deleteAllByPhong_Id(Long maPhong);
+    int countByPhong_Id(Long maPhong);
+    List<Ghe> findByPhong_Id(Long phongId);
+
+    List<Ghe> findByPhong_IdAndNhanGheIn(Long phongId, List<String> nhanGheList);
+
+
 }
